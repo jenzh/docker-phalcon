@@ -1,0 +1,56 @@
+version: '3'
+services:
+    nginx:
+        image: nginx:1.19.1-alpine
+        # 端口映射
+        ports:
+            - "80:80"
+        # 依赖关系 先跑php
+        depends_on:
+            - "php-fpm"
+        # 数据卷
+        volumes:
+            # 映射主机./conf.d目录到容器/etc/nginx/conf.d目录
+            - "$PWD/config/nginx:/etc/nginx/conf.d"
+            - "$PWD/html/test:/usr/share/nginx/html"
+        networks:
+            - app_net
+        # 容器名称
+        container_name: "nginx"
+    php-fpm:
+        build: ./config
+        image: php:7.4-fpm-phalcon
+        ports:
+            - "9000:9000"
+        volumes:
+            - "$PWD/config/php:/usr/local/etc/php"
+            - "$PWD/config/php-fpm.d:/usr/local/etc/php-fpm.d"
+            - "$PWD/config/yaconf:/usr/local/etc/yaconf"
+            - "$PWD/html:/usr/share/nginx/html"
+        networks:
+            app_net:
+                ipv4_address: 10.10.10.2
+        container_name: "php-fpm"
+    mysql:
+        image: mysql:5.7.31
+        ports:
+            - "3306:3306"
+        # 环境变量
+        environment:
+            # mysql密码
+            - MYSQL_ROOT_PASSWORD=123321
+        volumes:
+            - "$PWD/database:/var/lib/mysql"
+        networks:
+            app_net:
+                # 固定子网ip，网段必须在子网络10.10.*.*
+                ipv4_address: 10.10.10.1
+        container_name: "mysql"
+networks:
+    # 配置docker network
+    app_net:
+        driver: bridge
+        ipam:
+            config:
+                # 子网络
+                - subnet: 10.10.0.0/16
